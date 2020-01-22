@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/JamieKook/EmployeeTracker#readme",
   "dependencies": {
+    "console.table": "^0.10.0",
     "inquirer": "^7.0.3",
     "mysql": "^2.18.0"
   }
