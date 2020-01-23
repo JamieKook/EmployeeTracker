@@ -2,7 +2,7 @@ const mysql = require("mysql");
 const inquirer= require("inquirer"); 
 const cTable = require("console.table");
 // const EmployeeTracker = require("./lib/Employee_Tracker"); 
-const joinTables = "SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary FROM employee as E JOIN role as R on E.role_id = R.id JOIN department as D on D.id = R.department_id ORDER BY E.id"; 
+const joinTables = "SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary FROM employee as E JOIN role as R on E.role_id = R.id JOIN department as D on D.id = R.department_id"; 
 
 //Set up connection to mysql
 const connection = mysql.createConnection({
@@ -69,11 +69,12 @@ function switchUserChoice(action){
             break; 
         default:
             console.log("We don't have that functionality yet. Sorry."); 
+            connection.end(); 
     }
 }
 
 function viewAllData() {
-    connection.query(joinTables, function(err, res) {
+    connection.query(joinTables+ " ORDER BY E.id", function(err, res) {
       if (err) throw err;
       console.log("\n\n"); 
       console.table(res); 
@@ -109,7 +110,7 @@ function viewByDepartmentMain(){
 }
 
 function getTableByDepartment(department){
-    connection.query(`${joinTables} WHERE D.name = "${department}"`, function(err,res){
+    connection.query(`${joinTables} WHERE D.name = "${department}" ORDER BY E.id`, function(err,res){
         if (err) throw err;
         console.log("\n\n"); 
         console.table(res); 
@@ -151,6 +152,8 @@ function insertEmployeeData(roleNamesArr, employeeNamesArr, data){
     if (manager_id === 0){
         manager_id = null; 
     }
+    console.log(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${data.firstName}", "${data.lastName}", ${role_id}, ${manager_id})`); 
+    console.log(manager_id); 
     connection.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${data.firstName}", "${data.lastName}", ${role_id}, ${manager_id})`, function(err, res){
         if (err) throw error;
         console.log(`Added ${data.firstName} ${data.lastName} to the database`); 
