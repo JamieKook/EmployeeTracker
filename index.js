@@ -18,13 +18,13 @@ const connection = mysql.createConnection({
 //connect to mysql
 connection.connect(async function(err) {
     if (err) throw err; 
+    console.log("Welcome to the Employee Tracker!");
     startSession(); 
 }); 
 
 function startSession() {
-    console.log("Welcome to the Employee Tracker!");
     mainAsk().then(function(choice){
-        let {action} = choice; 
+        let {action} = choice;  
         switchUserChoice(action); 
         }
     )
@@ -44,7 +44,8 @@ function mainAsk() {
                     "Add Employee",
                     "Remove Employee",
                     "Update Employee Role",
-                    "Update Employee Manager"
+                    "Update Employee Manager",
+                    "End Session"
                     ]
                 }
             ]
@@ -57,8 +58,12 @@ function switchUserChoice(action){
             viewAllData(); 
             break; 
         case "View All Employees By Department": 
-            viewByDepartment();
-            break;  
+            viewByDepartmentMain();
+            break; 
+        case "End Session": 
+            console.log("Thank you for using Employee Tracker"); 
+            connection.end(); 
+            break; 
         default:
             console.log("We don't have that functionality yet. Sorry."); 
     }
@@ -67,7 +72,9 @@ function switchUserChoice(action){
 function viewAllData() {
     connection.query(joinTables, function(err, res) {
       if (err) throw err;
+      console.log("\n\n"); 
       console.table(res); 
+      startSession(); 
     });
 }
 
@@ -84,7 +91,7 @@ function askDepartment(names){
         ); 
 }
 
-function viewByDepartment(){
+function viewByDepartmentMain(){
     connection.query("SELECT name FROM department", function(err,res){
         if (err) throw err; 
         let departmentNamesArr=[];
@@ -93,7 +100,16 @@ function viewByDepartment(){
         }
         askDepartment(departmentNamesArr).then(function(choice) {
             let {departmentChoice} = choice; 
-            console.log(departmentChoice); 
+            getTableByDepartment(departmentChoice); 
         }); 
+    }); 
+}
+
+function getTableByDepartment(department){
+    connection.query(`${joinTables} WHERE D.name = "${department}"`, function(err,res){
+        if (err) throw err;
+        console.log("\n\n"); 
+        console.table(res); 
+        startSession();
     }); 
 }
