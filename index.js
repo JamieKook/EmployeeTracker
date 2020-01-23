@@ -2,7 +2,7 @@ const mysql = require("mysql");
 const inquirer= require("inquirer"); 
 const cTable = require("console.table");
 // const EmployeeTracker = require("./lib/Employee_Tracker"); 
-const joinTables = "SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary FROM employee as E JOIN role as R on E.role_id = R.id JOIN department as D on D.id = R.department_id"; 
+const joinTables = "SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary FROM employee as E JOIN role as R on E.role_id = R.id JOIN department as D on D.id = R.department_id ORDER BY E.id"; 
 
 //Set up connection to mysql
 const connection = mysql.createConnection({
@@ -60,6 +60,9 @@ function switchUserChoice(action){
         case "View All Employees By Department": 
             viewByDepartmentMain();
             break; 
+        case "Add Employee": 
+            addEmployee(); 
+            break; 
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
             connection.end(); 
@@ -112,4 +115,70 @@ function getTableByDepartment(department){
         console.table(res); 
         startSession();
     }); 
+}
+
+function addEmployee(){
+    connection.query("SELECT * FROM role", function(err, res) {
+        if (err) throw err; 
+        let roleData = res; 
+        let roleNamesArr=[];
+        for (const row of res){
+            roleNamesArr.push(row.title); 
+        }
+        collectEmployeeData(roleNamesArr); 
+    });
+}
+
+function collectEmployeeData(roleNamesArr){
+    return connection.query("SELECT * FROM employee", function(err, res) {
+        if (err) throw err; 
+        let employeeData= res; 
+        let employeeNamesArr= ["None"]; 
+        for (const row of res){
+            let name = `${row.first_name} ${row.last_name}`; 
+            employeeNamesArr.push(name); 
+        }
+        askNewEmployeeQuestions(roleNamesArr, employeeNamesArr).then( function(newEmployeeData){
+            insertEmployeeData(roleNamesArr, employeeNamesArr, newEmployeeData); 
+        });  
+
+    })
+}
+
+function insertEmployeeData(roleNamesArr, employeeNamesArr, data){
+    let role_id= roleNamesArr.indexOf(data.role)+1; 
+    let manager_id= employeeNamesArr.indexOf(data.manager); 
+    if (manager_id === 0){
+        manager_id = null; 
+    }
+    connection.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${data.firstName}", "${data.lastName}", ${role_id}, ${manager_id})`, function(err, res){
+        if (err) throw error;
+        console.log(`Added ${data.firstName} ${data.lastName} to the database`); 
+        startSession(); 
+    }); 
+
+}
+function askNewEmployeeQuestions(roles, managers){
+    const newEmployeeQuestions= [
+        {type: "input",
+        name: "firstName",
+        message: "What is the employee's first name?"
+        },
+        {type: "input",
+        name: "lastName",
+        message: "What is the employee's last name?"
+        },
+        {type: "list",
+        name: "role",
+        message: "What is the employee's role?",
+        choices: roles
+        },
+        {type: "list",
+        name: "manager",
+        message: "Who is the employee's manager?",
+        choices: managers
+        }
+    ]; 
+    return inquirer
+        .prompt(newEmployeeQuestions); 
 }
