@@ -16,6 +16,7 @@ const connection = mysql.createConnection({
     database: "employee_tracker"
 }); 
 
+//promsifiy connection- probably don't need both; 
 const db= new MySQL({
     host: "localhost", 
     port: 3306,
@@ -79,13 +80,18 @@ function switchUserChoice(action){
         case "Remove Employee":
             removeEmployee(); 
             break; 
+        case "Update Employee Role":
+            updateEmployeeRoleMain(); 
+            break; 
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
             connection.end(); 
+            db.end(); 
             break; 
         default:
             console.log("We don't have that functionality yet. Sorry."); 
             connection.end(); 
+            db.end(); 
     }
 }
 
@@ -98,6 +104,7 @@ function viewAllData() {
     });
 }
 
+//functions to view by department 
 function askDepartment(names){
     return inquirer
         .prompt(
@@ -134,16 +141,23 @@ function getTableByDepartment(department){
     }); 
 }
 
-function addEmployee(){
-    connection.query("SELECT * FROM role", function(err, res) {
-        if (err) throw err; 
-        let roleData = res; 
-        let roleNamesArr=[];
-        for (const row of res){
-            roleNamesArr.push(row.title); 
-        }
-        collectEmployeeData(roleNamesArr); 
-    });
+//functions to add employees
+async function addEmployee(){
+    // connection.query("SELECT * FROM role", function(err, res) {
+    //     if (err) throw err; 
+    //     let roleData = res; 
+    //     let roleNamesArr=[];
+    //     for (const row of res){
+    //         roleNamesArr.push(row.title); 
+    //     }
+    //     collectEmployeeData(roleNamesArr); 
+    // });
+    let roleNamesArr= await getRoleNames();
+    let employeeNamesArr = await getCurrentEmployeeNames(); 
+    askNewEmployeeQuestions(roleNamesArr, employeeNamesArr).then( function(newEmployeeData){
+        insertEmployeeData(roleNamesArr, employeeNamesArr, newEmployeeData); 
+    });   
+    // collectEmployeeData(roleNamesArr); 
 }
 
 // function collectEmployeeData(roleNamesArr){
@@ -162,12 +176,12 @@ function addEmployee(){
 //     })
 // }
 
-async function collectEmployeeData(roleNamesArr){
-    let employeeNamesArr = await getCurrentEmployeeNames(); 
-    askNewEmployeeQuestions(roleNamesArr, employeeNamesArr).then( function(newEmployeeData){
-        insertEmployeeData(roleNamesArr, employeeNamesArr, newEmployeeData); 
-    });  
-}
+// async function collectEmployeeData(roleNamesArr){
+//     let employeeNamesArr = await getCurrentEmployeeNames(); 
+//     askNewEmployeeQuestions(roleNamesArr, employeeNamesArr).then( function(newEmployeeData){
+//         insertEmployeeData(roleNamesArr, employeeNamesArr, newEmployeeData); 
+//     });  
+// }
 
 function insertEmployeeData(roleNamesArr, employeeNamesArr, data){
     let role_id= roleNamesArr.indexOf(data.role)+1; 
@@ -210,6 +224,7 @@ function askNewEmployeeQuestions(roles, managers){
         .prompt(newEmployeeQuestions); 
 }
 
+//functions to remove employees
 async function removeEmployee(){
     let employeeNamesArr = await getCurrentEmployeeNames(); 
     askRemoveEmployeeQuestions(employeeNamesArr).then(function(removeEmployeeData){
@@ -248,25 +263,12 @@ function askRemoveEmployeeQuestions(employeeNames){
         )
 }
 
-// function getCurrentEmployeeNames(){
-//     return connection.query("SELECT * FROM employee", function(err, res) {
-//         if (err) throw err; 
-//         let employeeData= res; 
-//         let employeeNamesArr= ["None"]; 
-//         for (const row of res){
-//             let name = `${row.first_name} ${row.last_name}`; 
-//             employeeNamesArr.push(name); 
-//         }
-//         return employeeNamesArr; 
-//     }); 
-// }
-
 async function getCurrentEmployeeNames(){
     try{
         const {results} = await db.query({
             sql: "SELECT * FROM employee",
         });  
-        let employeeNamesArr= ["None"]; 
+        let employeeNamesArr= []; 
         for (const row of results){
             let name = `${row.first_name} ${row.last_name}`; 
             employeeNamesArr.push(name); 
@@ -275,4 +277,68 @@ async function getCurrentEmployeeNames(){
     } catch(err){
         console.log(err); 
     } 
+}
+
+async function getRoleNames(){
+    try {
+        const {results} = await db.query({
+            sql: "SELECT * FROM role",
+        }); 
+        let roleNamesArr=[];
+        for (const row of results){
+            roleNamesArr.push(row.title); 
+        }
+        return roleNamesArr; 
+    } catch(err) {
+        console.log(err); 
+    }
+}
+
+//functions to update employee role
+async function updateEmployeeRoleMain(){
+    let employeeNamesArr= await getCurrentEmployeeNames(); 
+    let roleNamesArr= await getRoleNames(); 
+    askUpdateRoleQuestions(employeeNamesArr, roleNamesArr).then(function(updateEmployeeData){
+        updateEmployeeRoleSql(employeeNamesArr, roleNamesArr, updateEmployeeData); 
+    })
+}
+
+function askUpdateRoleQuestions(employees, roles) {
+    const updateRoleQuestions= [
+        {type: "list",
+        name: "employeeToUpdate",
+        message: "Which employee's role do you want to update?",
+        choices: employees
+        },
+        {type: "list",
+        name: "newRole",
+        message: "What is the employee's new role?",
+        choices: roles
+        }
+    ]; 
+    return inquirer
+        .prompt(updateRoleQuestions); 
+}
+
+function updateEmployeeRoleSql(employeeNamesArr, roleNamesArr,updateEmployeeData){
+    let {employeeToUpdate} = updateEmployeeData;
+    let employeeId= employeeNamesArr.indexOf(employeeToUpdate)+1; 
+    let {newRole} = updateEmployeeData;
+    let role_id= roleNamesArr.indexOf(newRole)+1; 
+    connection.query(
+        `UPDATE employee SET ? WHERE ?`,
+        [
+            {
+                role_id: role_id
+            },
+            {
+                id: employeeId
+            }
+        ], 
+        function (err, res){
+            if (err) throw err; 
+            console.log( `Updated ${employeeToUpdate} to the new role of ${newRole}`); 
+            startSession(); 
+        }
+    ); 
 }
