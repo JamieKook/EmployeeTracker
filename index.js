@@ -1,8 +1,11 @@
 const mysql = require("mysql"); 
 const inquirer= require("inquirer"); 
 const cTable = require("console.table");
-// const EmployeeTracker = require("./lib/Employee_Tracker"); 
+const EmployeeTracker = require("./lib/Employee_Tracker"); 
 const joinTables = "SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary FROM employee as E JOIN role as R on E.role_id = R.id JOIN department as D on D.id = R.department_id"; 
+// const util = require("util"); 
+const {MySQL} = require("mysql-promisify"); 
+
 
 //Set up connection to mysql
 const connection = mysql.createConnection({
@@ -13,6 +16,15 @@ const connection = mysql.createConnection({
     database: "employee_tracker"
 }); 
 
+const db= new MySQL({
+    host: "localhost", 
+    port: 3306,
+    user: "jamie",
+    password: "1234pass",
+    database: "employee_tracker"
+}); 
+
+// const queryAsync = util.promisify(connection.query); 
 // const employeeTracker = new EmployeeTracker(); 
 
 //connect to mysql
@@ -20,6 +32,7 @@ connection.connect(async function(err) {
     if (err) throw err; 
     console.log("Welcome to the Employee Tracker!");
     startSession(); 
+    // employeeTracker.startSession(); 
 }); 
 
 function startSession() {
@@ -62,6 +75,9 @@ function switchUserChoice(action){
             break; 
         case "Add Employee": 
             addEmployee(); 
+            break; 
+        case "Remove Employee":
+            removeEmployee(); 
             break; 
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
@@ -130,20 +146,27 @@ function addEmployee(){
     });
 }
 
-function collectEmployeeData(roleNamesArr){
-    return connection.query("SELECT * FROM employee", function(err, res) {
-        if (err) throw err; 
-        let employeeData= res; 
-        let employeeNamesArr= ["None"]; 
-        for (const row of res){
-            let name = `${row.first_name} ${row.last_name}`; 
-            employeeNamesArr.push(name); 
-        }
-        askNewEmployeeQuestions(roleNamesArr, employeeNamesArr).then( function(newEmployeeData){
-            insertEmployeeData(roleNamesArr, employeeNamesArr, newEmployeeData); 
-        });  
+// function collectEmployeeData(roleNamesArr){
+//     return connection.query("SELECT * FROM employee", function(err, res) {
+//         if (err) throw err; 
+//         let employeeData= res; 
+//         let employeeNamesArr= ["None"]; 
+//         for (const row of res){
+//             let name = `${row.first_name} ${row.last_name}`; 
+//             employeeNamesArr.push(name); 
+//         }
+//         askNewEmployeeQuestions(roleNamesArr, employeeNamesArr).then( function(newEmployeeData){
+//             insertEmployeeData(roleNamesArr, employeeNamesArr, newEmployeeData); 
+//         });  
 
-    })
+//     })
+// }
+
+async function collectEmployeeData(roleNamesArr){
+    let employeeNamesArr = await getCurrentEmployeeNames(); 
+    askNewEmployeeQuestions(roleNamesArr, employeeNamesArr).then( function(newEmployeeData){
+        insertEmployeeData(roleNamesArr, employeeNamesArr, newEmployeeData); 
+    });  
 }
 
 function insertEmployeeData(roleNamesArr, employeeNamesArr, data){
@@ -152,6 +175,7 @@ function insertEmployeeData(roleNamesArr, employeeNamesArr, data){
     if (manager_id === 0){
         manager_id = null; 
     }
+    //trouble adding managers who are added employees
     console.log(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${data.firstName}", "${data.lastName}", ${role_id}, ${manager_id})`); 
     console.log(manager_id); 
     connection.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${data.firstName}", "${data.lastName}", ${role_id}, ${manager_id})`, function(err, res){
@@ -184,4 +208,71 @@ function askNewEmployeeQuestions(roles, managers){
     ]; 
     return inquirer
         .prompt(newEmployeeQuestions); 
+}
+
+async function removeEmployee(){
+    let employeeNamesArr = await getCurrentEmployeeNames(); 
+    askRemoveEmployeeQuestions(employeeNamesArr).then(function(removeEmployeeData){
+        let {employeeToRemove} = removeEmployeeData; 
+        let firstName= employeeToRemove.split(" ")[0];
+        let lastName=  employeeToRemove.split(" ")[1];
+        connection.query(
+            `DELETE FROM employee WHERE ? AND ?`,
+            [
+                {
+                    first_name: firstName
+                },
+                { 
+                    last_name: lastName
+                }
+            ],
+            function(err, res){
+                if (err) throw err; 
+                console.log(`Removed ${employeeToRemove} from the database`); 
+                startSession(); 
+            }
+        ); 
+    }); 
+}
+
+function askRemoveEmployeeQuestions(employeeNames){
+    return inquirer
+        .prompt(
+            [
+                {type: "list",
+                name: "employeeToRemove",
+                message: "Which employee do you want to remove?",
+                choices: employeeNames
+                }
+            ]
+        )
+}
+
+// function getCurrentEmployeeNames(){
+//     return connection.query("SELECT * FROM employee", function(err, res) {
+//         if (err) throw err; 
+//         let employeeData= res; 
+//         let employeeNamesArr= ["None"]; 
+//         for (const row of res){
+//             let name = `${row.first_name} ${row.last_name}`; 
+//             employeeNamesArr.push(name); 
+//         }
+//         return employeeNamesArr; 
+//     }); 
+// }
+
+async function getCurrentEmployeeNames(){
+    try{
+        const {results} = await db.query({
+            sql: "SELECT * FROM employee",
+        });  
+        let employeeNamesArr= ["None"]; 
+        for (const row of results){
+            let name = `${row.first_name} ${row.last_name}`; 
+            employeeNamesArr.push(name); 
+        }
+        return employeeNamesArr; 
+    } catch(err){
+        console.log(err); 
+    } 
 }
