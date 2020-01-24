@@ -2,7 +2,7 @@ const mysql = require("mysql");
 const inquirer= require("inquirer"); 
 const cTable = require("console.table");
 const EmployeeTracker = require("./lib/Employee_Tracker"); 
-const joinTables = "SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary FROM employee as E JOIN role as R on E.role_id = R.id JOIN department as D on D.id = R.department_id"; 
+const joinTables = "SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary FROM employee as E INNER JOIN role as R on E.role_id = R.id INNER JOIN department as D on D.id = R.department_id"; 
 // const util = require("util"); 
 const {MySQL} = require("mysql-promisify"); 
 
@@ -185,8 +185,8 @@ async function addEmployee(){
 
 function insertEmployeeData(roleNamesArr, employeeNamesArr, data){
     let role_id= roleNamesArr.indexOf(data.role)+1; 
-    let manager_id= employeeNamesArr.indexOf(data.manager); 
-    if (manager_id === 0){
+    let manager_id= employeeNamesArr.indexOf(data.manager)+1;
+    if (data.manager === "none"){
         manager_id = null; 
     }
     //trouble adding managers who are added employees
@@ -200,6 +200,7 @@ function insertEmployeeData(roleNamesArr, employeeNamesArr, data){
 
 }
 function askNewEmployeeQuestions(roles, managers){
+    managers.push("none"); 
     const newEmployeeQuestions= [
         {type: "input",
         name: "firstName",
@@ -284,7 +285,7 @@ async function getRoleNames(){
         const {results} = await db.query({
             sql: "SELECT * FROM role",
         }); 
-        let roleNamesArr=[];
+        let roleNamesArr=[]; 
         for (const row of results){
             roleNamesArr.push(row.title); 
         }
