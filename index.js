@@ -2,7 +2,12 @@ const mysql = require("mysql");
 const inquirer= require("inquirer"); 
 const cTable = require("console.table");
 const EmployeeTracker = require("./lib/Employee_Tracker"); 
-const joinTables = "SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary FROM employee as E INNER JOIN role as R on E.role_id = R.id INNER JOIN department as D on D.id = R.department_id"; 
+const joinTables = `SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary,CONCAT(EM.first_name, " ", EM.last_name) as manager
+FROM employee as E 
+LEFT JOIN role as R on E.role_id = R.id 
+LEFT JOIN department as D on D.id = R.department_id
+LEFT JOIN employee as EM on EM.id = E.manager_id`
+
 // const util = require("util"); 
 const {MySQL} = require("mysql-promisify"); 
 
@@ -309,7 +314,6 @@ function askUpdateRoleQuestions(employees, roles) {
 }
 
 function updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr,updateEmployeeData){
-    // let {employeeToUpdate} = updateEmployeeData;
     let roleObject= roleObjectsArr.find(role => role.title === updateEmployeeData.newRole); 
     let role_id= roleObject.id; 
     let employeeObject = employeeObjectArr.find(employee => employee.name === updateEmployeeData.employeeToUpdate); 
