@@ -219,6 +219,7 @@ async function removeEmployee(){
 }
 
 function askRemoveEmployeeQuestions(employeeNames){
+    employeeNames= getEmployeeNamesOnly(employeeNames); 
     return inquirer
         .prompt(
             [
