@@ -81,6 +81,7 @@ function switchUserChoice(action){
             break; 
         case "View All Employees By Manager":
             viewByManagerMain(); 
+            break; 
         case "Add Employee": 
             addEmployee(); 
             break; 
@@ -151,8 +152,44 @@ function getTableByDepartment(department){
     }); 
 }
 
-function viewByManagerMain(){
+async function viewByManagerMain(){
+    let employeeObjectArr = await getCurrentEmployeeNamesIds(); 
+    employeeObjectArr.push({name: "none", id: null});
+    askManager(employeeObjectArr).then(function(answer){
+        let managerObject= employeeObjectArr.find(employee => employee.name === answer.managerChoice); 
+        let manager_id = managerObject.id; 
+        getTableByManager(manager_id); 
+    }); 
+}
 
+function askManager(employeeObjectArr){
+    names = getEmployeeNamesOnly(employeeObjectArr); 
+    return inquirer
+    .prompt(
+        [
+            {type: "list",
+            name: "managerChoice",
+            message: "Which manager would you like to view?",
+            choices: names
+            }
+        ]
+    ); 
+}
+
+async function getTableByManager(manager_id){
+    try{
+        const {results} = await db.query({
+            sql: `${joinTables} 
+                WHERE E.manager_id = "${manager_id}" 
+                ORDER BY E.id`,
+        })
+        console.log("\n"); 
+        console.table(results);
+        console.log("\n"); 
+        startSession(); 
+    } catch (err) {
+        if (err) throw err; 
+    }
 }
 
 //functions to add employees
