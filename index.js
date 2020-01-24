@@ -79,6 +79,8 @@ function switchUserChoice(action){
         case "View All Employees By Department": 
             viewByDepartmentMain();
             break; 
+        case "View All Employees By Manager":
+            viewByManagerMain(); 
         case "Add Employee": 
             addEmployee(); 
             break; 
@@ -87,6 +89,9 @@ function switchUserChoice(action){
             break; 
         case "Update Employee Role":
             updateEmployeeRoleMain(); 
+            break; 
+        case "Update Employee Manager": 
+            updateEmployeeManagerMain(); 
             break; 
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
@@ -144,6 +149,10 @@ function getTableByDepartment(department){
         console.table(res); 
         startSession();
     }); 
+}
+
+function viewByManagerMain(){
+
 }
 
 //functions to add employees
@@ -334,4 +343,51 @@ function updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr,updateEmployeeD
             startSession(); 
         }
     ); 
+}
+
+async function updateEmployeeManagerMain(){
+    let employeeObjectArr = await getCurrentEmployeeNamesIds();
+    let managerObjectArr = employeeObjectArr;
+    managerObjectArr.push({name: "none", id: null}); 
+    askUpdateMangerQuestions(employeeObjectArr, managerObjectArr).then(function(answer){
+        updateEmployeeManagerSql(employeeObjectArr, managerObjectArr, answer); 
+    })
+}
+
+function askUpdateMangerQuestions(employees, managers){
+    employees = getEmployeeNamesOnly(employees); 
+    managers= getEmployeeNamesOnly(managers); 
+    const updateRoleQuestions= [
+        {type: "list",
+        name: "employeeToUpdate",
+        message: "Which employee's manager do you want to update?",
+        choices: employees
+        },
+        {type: "list",
+        name: "newManager",
+        message: "Who is the employee's new manager?",
+        choices: employees
+        }
+    ]; 
+    return inquirer
+        .prompt(updateRoleQuestions); 
+}
+
+async function updateEmployeeManagerSql(employeeObjectArr, managerObjectArr, updateEmployeeData){
+    let updatedEmployeeObject = employeeObjectArr.find(employee => employee.name === updateEmployeeData.employeeToUpdate); 
+    let updatedEmployeeId= updatedEmployeeObject.id;
+    let newManagerObject =  managerObjectArr.find(employee => employee.name === updateEmployeeData.newManager); 
+    let newMangerId= newManagerObject.id; 
+    try{
+        await db.query({
+            sql: `UPDATE employee
+                 SET manager_id = ${newMangerId}
+                 WHERE id= ${updatedEmployeeId}`, 
+
+        }); 
+        console.log(`Updated ${updatedEmployeeObject.name} to have ${newManagerObject.name} as her/his new manager.`); 
+        startSession(); 
+    } catch (err) {
+        if (err) throw err; 
+    }
 }
