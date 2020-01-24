@@ -290,6 +290,8 @@ async function updateEmployeeRoleMain(){
 }
 
 function askUpdateRoleQuestions(employees, roles) {
+    employees = getEmployeeNamesOnly(employees); 
+    roles = getRoleNamesOnly(roles); 
     const updateRoleQuestions= [
         {type: "list",
         name: "employeeToUpdate",
@@ -307,10 +309,11 @@ function askUpdateRoleQuestions(employees, roles) {
 }
 
 function updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr,updateEmployeeData){
-    let {employeeToUpdate} = updateEmployeeData;
-    let employeeId= employeeObjectArr.indexOf(employeeToUpdate)+1; 
-    let {newRole} = updateEmployeeData;
-    let role_id= roleObjectsArr.indexOf(newRole)+1; 
+    // let {employeeToUpdate} = updateEmployeeData;
+    let roleObject= roleObjectsArr.find(role => role.title === updateEmployeeData.newRole); 
+    let role_id= roleObject.id; 
+    let employeeObject = employeeObjectArr.find(employee => employee.name === updateEmployeeData.employeeToUpdate); 
+    let employeeId= employeeObject.id;  
     connection.query(
         `UPDATE employee SET ? WHERE ?`,
         [
@@ -323,7 +326,7 @@ function updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr,updateEmployeeD
         ], 
         function (err, res){
             if (err) throw err; 
-            console.log( `Updated ${employeeToUpdate} to the new role of ${newRole}`); 
+            console.log( `Updated ${employeeObject.name} to the new role of ${roleObject.title}`); 
             startSession(); 
         }
     ); 
