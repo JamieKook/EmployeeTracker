@@ -143,16 +143,17 @@ function getTableByDepartment(department){
 
 //functions to add employees
 async function addEmployee(){
-    let roleNamesArr= await getRoleNames();
+    let roleObjectsArr= await getRoleNamesIds();
     let employeeObjectArr = await getCurrentEmployeeNamesIds(); 
     employeeObjectArr.push({name: "none", id: null});
-    askNewEmployeeQuestions(roleNamesArr, employeeObjectArr).then( function(newEmployeeData){
-        insertEmployeeData(roleNamesArr, employeeObjectArr, newEmployeeData); 
+    askNewEmployeeQuestions(roleObjectsArr, employeeObjectArr).then( function(newEmployeeData){
+        insertEmployeeData(roleObjectsArr, employeeObjectArr, newEmployeeData); 
     });   
 }
 
-function insertEmployeeData(roleNamesArr, employeeObjectArr, data){
-    let role_id= roleNamesArr.indexOf(data.role)+1; 
+function insertEmployeeData(roleObjectsArr, employeeObjectArr, data){
+    let roleObject= roleObjectsArr.find(role => role.title === data.role); 
+    let role_id= roleObject.id; 
     const managerObject = employeeObjectArr.find(employee => employee.name === data.manager); 
     let manager_id = managerObject.id; 
     console.log(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${data.firstName}", "${data.lastName}", ${role_id}, ${manager_id})`); 
@@ -165,7 +166,8 @@ function insertEmployeeData(roleNamesArr, employeeObjectArr, data){
 
 }
 function askNewEmployeeQuestions(roles, managers){
-    getEmployeeNamesOnly(managers); 
+    managers = getEmployeeNamesOnly(managers); 
+    roles= getRoleNamesOnly(roles); 
     const newEmployeeQuestions= [
         {type: "input",
         name: "firstName",
@@ -254,27 +256,35 @@ function getEmployeeNamesOnly(employeeObjectArr){
     return employeeNamesArr; 
 }
 
-async function getRoleNames(){
+async function getRoleNamesIds(){
     try {
         const {results} = await db.query({
-            sql: "SELECT title FROM role",
+            sql: "SELECT title, id FROM role",
         }); 
-        let roleNamesArr=[]; 
+        let roleObjectsArr=[]; 
         for (const row of results){
-            roleNamesArr.push(row.title); 
+            roleObjectsArr.push({title: row.title, id: row.id}); 
         }
-        return roleNamesArr; 
+        return roleObjectsArr; 
     } catch(err) {
         console.log(err); 
     }
 }
 
+function getRoleNamesOnly(roleObjectsArr){
+    let roleNamesArr= [];
+    for (const role of roleObjectsArr){
+        roleNamesArr.push(role.title); 
+    }
+    return roleNamesArr; 
+}
+
 //functions to update employee role
 async function updateEmployeeRoleMain(){
     let employeeObjectArr= await getCurrentEmployeeNamesIds(); 
-    let roleNamesArr= await getRoleNames(); 
-    askUpdateRoleQuestions(employeeObjectArr, roleNamesArr).then(function(updateEmployeeData){
-        updateEmployeeRoleSql(employeeObjectArr, roleNamesArr, updateEmployeeData); 
+    let roleObjectsArr= await getRoleNamesIds(); 
+    askUpdateRoleQuestions(employeeObjectArr, roleObjectsArr).then(function(updateEmployeeData){
+        updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr, updateEmployeeData); 
     })
 }
 
@@ -295,11 +305,11 @@ function askUpdateRoleQuestions(employees, roles) {
         .prompt(updateRoleQuestions); 
 }
 
-function updateEmployeeRoleSql(employeeObjectArr, roleNamesArr,updateEmployeeData){
+function updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr,updateEmployeeData){
     let {employeeToUpdate} = updateEmployeeData;
     let employeeId= employeeObjectArr.indexOf(employeeToUpdate)+1; 
     let {newRole} = updateEmployeeData;
-    let role_id= roleNamesArr.indexOf(newRole)+1; 
+    let role_id= roleObjectsArr.indexOf(newRole)+1; 
     connection.query(
         `UPDATE employee SET ? WHERE ?`,
         [
