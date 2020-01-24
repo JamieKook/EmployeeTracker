@@ -1,80 +1,25 @@
-const mysql = require("mysql"); 
-const inquirer= require("inquirer"); 
-const cTable = require("console.table");
 const EmployeeTracker = require("./lib/Employee_Tracker"); 
-const joinTables = `SELECT E.id, E.first_name, E.last_name, R.title, D.name as department, R.salary,CONCAT(EM.first_name, " ", EM.last_name) as manager
-FROM employee as E 
-LEFT JOIN role as R on E.role_id = R.id 
-LEFT JOIN department as D on D.id = R.department_id
-LEFT JOIN employee as EM on EM.id = E.manager_id`
 
-// const util = require("util"); 
-const {MySQL} = require("mysql-promisify"); 
+const SqlQueries = require("./lib/sql_queries"); 
+const InquirerPrompts = require("./lib/inquirer_prompts"); 
 
+const sqlQueries = new SqlQueries; 
+const inquirerPrompts = new InquirerPrompts; 
 
-//Set up connection to mysql
-const connection = mysql.createConnection({
-    host: "localhost", 
-    port: 3306,
-    user: "jamie",
-    password: "1234pass",
-    database: "employee_tracker"
-}); 
-
-//promsifiy connection- probably don't need both; 
-const db= new MySQL({
-    host: "localhost", 
-    port: 3306,
-    user: "jamie",
-    password: "1234pass",
-    database: "employee_tracker"
-}); 
-
-// const queryAsync = util.promisify(connection.query); 
-// const employeeTracker = new EmployeeTracker(); 
-
-//connect to mysql
-connection.connect(async function(err) {
-    if (err) throw err; 
-    console.log("Welcome to the Employee Tracker!");
-    startSession(); 
-    // employeeTracker.startSession(); 
-}); 
+sqlQueries.beginConnection(startSession); 
 
 function startSession() {
-    mainAsk().then(function(choice){
+    inquirerPrompts.mainAsk().then(function(choice){
         let {action} = choice;  
         switchUserChoice(action); 
         }
     )
 }
 
-function mainAsk() {
-    return inquirer
-        .prompt(
-            [
-                {type: "list", 
-                name: "action", 
-                message: "What would you like to do?", 
-                choices:
-                    ["View All Employees" , 
-                    "View All Employees By Department", 
-                    "View All Employees By Manager", 
-                    "Add Employee",
-                    "Remove Employee",
-                    "Update Employee Role",
-                    "Update Employee Manager",
-                    "End Session"
-                    ]
-                }
-            ]
-        );
-}
-
 function switchUserChoice(action){
     switch (action) {
         case "View All Employees": 
-            viewAllData(); 
+            sqlQueries.viewAllData(startSession); 
             break; 
         case "View All Employees By Department": 
             viewByDepartmentMain();
@@ -96,208 +41,85 @@ function switchUserChoice(action){
             break; 
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
-            connection.end(); 
-            db.end(); 
+            sqlQueries.endConnection(); 
             break; 
         default:
             console.log("We don't have that functionality yet. Sorry."); 
-            connection.end(); 
-            db.end(); 
+            sqlQueries.endConnection(); 
     }
 }
 
-function viewAllData() {
-    connection.query(joinTables+ " ORDER BY E.id", function(err, res) {
-      if (err) throw err;
-      console.log("\n\n"); 
-      console.table(res); 
-      startSession(); 
-    });
-}
-
-//functions to view by department 
-function askDepartment(names){
-    return inquirer
-        .prompt(
-            [
-                {type: "list",
-                name: "departmentChoice",
-                message: "Which department would you like to view?",
-                choices: names
-                }
-            ]
-        ); 
-}
-
-function viewByDepartmentMain(){
-    connection.query("SELECT name FROM department", function(err,res){
-        if (err) throw err; 
-        let departmentNamesArr=[];
-        for (const row of res){
-            departmentNamesArr.push(row.name); 
-        }
-        askDepartment(departmentNamesArr).then(function(choice) {
-            let {departmentChoice} = choice; 
-            getTableByDepartment(departmentChoice); 
-        }); 
-    }); 
-}
-
-function getTableByDepartment(department){
-    connection.query(`${joinTables} WHERE D.name = "${department}" ORDER BY E.id`, function(err,res){
-        if (err) throw err;
-        console.log("\n\n"); 
-        console.table(res); 
-        startSession();
-    }); 
+//main option functions from switch statement
+async function viewByDepartmentMain(){
+    let departmentObjectArr = await sqlQueries.getDepartmentNamesIds(); 
+    let departmentNames = getDepartmentNamesOnly(departmentObjectArr); 
+    inquirerPrompts.askDepartment(departmentNames).then(function(answer){
+        let {departmentChoice}= answer; 
+        sqlQueries.getTableByDepartment(departmentChoice, startSession); 
+    })
 }
 
 async function viewByManagerMain(){
-    let employeeObjectArr = await getCurrentEmployeeNamesIds(); 
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds(); 
     employeeObjectArr.push({name: "none", id: null});
-    askManager(employeeObjectArr).then(function(answer){
+    names = getEmployeeNamesOnly(employeeObjectArr); 
+    inquirerPrompts.askManager(names).then(function(answer){
         let managerObject= employeeObjectArr.find(employee => employee.name === answer.managerChoice); 
         let manager_id = managerObject.id; 
-        getTableByManager(manager_id); 
+        sqlQueries.getTableByManager(manager_id, startSession); 
     }); 
 }
 
-function askManager(employeeObjectArr){
-    names = getEmployeeNamesOnly(employeeObjectArr); 
-    return inquirer
-    .prompt(
-        [
-            {type: "list",
-            name: "managerChoice",
-            message: "Which manager would you like to view?",
-            choices: names
-            }
-        ]
-    ); 
-}
-
-async function getTableByManager(manager_id){
-    try{
-        const {results} = await db.query({
-            sql: `${joinTables} 
-                WHERE E.manager_id = "${manager_id}" 
-                ORDER BY E.id`,
-        })
-        console.log("\n"); 
-        console.table(results);
-        console.log("\n"); 
-        startSession(); 
-    } catch (err) {
-        if (err) throw err; 
-    }
-}
-
-//functions to add employees
 async function addEmployee(){
-    let roleObjectsArr= await getRoleNamesIds();
-    let employeeObjectArr = await getCurrentEmployeeNamesIds(); 
+    let roleObjectsArr= await sqlQueries.getRoleNamesIds();
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds(); 
     employeeObjectArr.push({name: "none", id: null});
-    askNewEmployeeQuestions(roleObjectsArr, employeeObjectArr).then( function(newEmployeeData){
-        insertEmployeeData(roleObjectsArr, employeeObjectArr, newEmployeeData); 
+    managers = getEmployeeNamesOnly(employeeObjectArr); 
+    roles= getRoleNamesOnly(roleObjectsArr); 
+    inquirerPrompts.askNewEmployeeQuestions(roles, managers).then( function(answers){
+        sqlQueries.insertEmployeeData(roleObjectsArr, employeeObjectArr, answers, startSession); 
     });   
 }
 
-function insertEmployeeData(roleObjectsArr, employeeObjectArr, data){
-    let roleObject= roleObjectsArr.find(role => role.title === data.role); 
-    let role_id= roleObject.id; 
-    const managerObject = employeeObjectArr.find(employee => employee.name === data.manager); 
-    let manager_id = managerObject.id; 
-    console.log(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${data.firstName}", "${data.lastName}", ${role_id}, ${manager_id})`); 
-    console.log(manager_id); 
-    connection.query(`INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ("${data.firstName}", "${data.lastName}", ${role_id}, ${manager_id})`, function(err, res){
-        if (err) throw error;
-        console.log(`Added ${data.firstName} ${data.lastName} to the database`); 
-        startSession(); 
-    }); 
-
-}
-function askNewEmployeeQuestions(roles, managers){
-    managers = getEmployeeNamesOnly(managers); 
-    roles= getRoleNamesOnly(roles); 
-    const newEmployeeQuestions= [
-        {type: "input",
-        name: "firstName",
-        message: "What is the employee's first name?"
-        },
-        {type: "input",
-        name: "lastName",
-        message: "What is the employee's last name?"
-        },
-        {type: "list",
-        name: "role",
-        message: "What is the employee's role?",
-        choices: roles
-        },
-        {type: "list",
-        name: "manager",
-        message: "Who is the employee's manager?",
-        choices: managers
-        }
-    ]; 
-    return inquirer
-        .prompt(newEmployeeQuestions); 
-}
-
-//functions to remove employees
 async function removeEmployee(){
-    let employeeObjectArr = await getCurrentEmployeeNamesIds(); 
-    askRemoveEmployeeQuestions(employeeObjectArr).then(function(removeEmployeeData){
-        let {employeeToRemove} = removeEmployeeData; 
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds(); 
+    let employeeNames= getEmployeeNamesOnly(employeeObjectArr); 
+    inquirerPrompts.askRemoveEmployeeQuestions(employeeNames).then(function(answer){
+        let {employeeToRemove} = answer; 
         let firstName= employeeToRemove.split(" ")[0];
         let lastName=  employeeToRemove.split(" ")[1];
-        connection.query(
-            `DELETE FROM employee WHERE ? AND ?`,
-            [
-                {
-                    first_name: firstName
-                },
-                { 
-                    last_name: lastName
-                }
-            ],
-            function(err, res){
-                if (err) throw err; 
-                console.log(`Removed ${employeeToRemove} from the database`); 
-                startSession(); 
-            }
-        ); 
-    }); 
+        sqlQueries.removeEmployeeData(firstName, lastName, startSession);
+    });  
 }
 
-function askRemoveEmployeeQuestions(employeeNames){
-    employeeNames= getEmployeeNamesOnly(employeeNames); 
-    return inquirer
-        .prompt(
-            [
-                {type: "list",
-                name: "employeeToRemove",
-                message: "Which employee do you want to remove?",
-                choices: employeeNames
-                }
-            ]
-        )
+async function updateEmployeeRoleMain(){
+    let employeeObjectArr= await sqlQueries.getCurrentEmployeeNamesIds(); 
+    let roleObjectsArr= await sqlQueries.getRoleNamesIds();
+    let employees = getEmployeeNamesOnly(employeeObjectArr); 
+    let roles = getRoleNamesOnly(roleObjectsArr);  
+    inquirerPrompts.askUpdateRoleQuestions(employees, roles).then(function(answers){
+        sqlQueries.updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr, answers, startSession); 
+    })
 }
 
-async function getCurrentEmployeeNamesIds(){
-    try{
-        const {results} = await db.query({
-            sql: "SELECT first_name, last_name, id FROM employee",
-        });  
-        let employeeObjectArr= []; 
-        for (const row of results){
-            let employeeObject = {name: `${row.first_name} ${row.last_name}`,
-                                    id: row.id}; 
-            employeeObjectArr.push(employeeObject); 
-        }
-        return employeeObjectArr; 
-    } catch(err){
-        console.log(err); 
-    } 
+async function updateEmployeeManagerMain(){
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds();
+    let managerObjectArr = employeeObjectArr;
+    managerObjectArr.push({name: "none", id: null}); 
+    let employees = getEmployeeNamesOnly(employeeObjectArr); 
+    let managers= getEmployeeNamesOnly(managerObjectArr); 
+    inquirerPrompts.askUpdateMangerQuestions(employees, managers).then(function(answers){
+        sqlQueries.updateEmployeeManagerSql(employeeObjectArr, managerObjectArr, answers, startSession); 
+    })
+}
+
+//helper functions
+function getDepartmentNamesOnly(departmentObjectsArr){
+    let departmentNamesArr= [];
+    for (const department of departmentObjectsArr){
+        departmentNamesArr.push(department.name); 
+    }
+    return departmentNamesArr; 
 }
 
 function getEmployeeNamesOnly(employeeObjectArr){
@@ -308,21 +130,6 @@ function getEmployeeNamesOnly(employeeObjectArr){
     return employeeNamesArr; 
 }
 
-async function getRoleNamesIds(){
-    try {
-        const {results} = await db.query({
-            sql: "SELECT title, id FROM role",
-        }); 
-        let roleObjectsArr=[]; 
-        for (const row of results){
-            roleObjectsArr.push({title: row.title, id: row.id}); 
-        }
-        return roleObjectsArr; 
-    } catch(err) {
-        console.log(err); 
-    }
-}
-
 function getRoleNamesOnly(roleObjectsArr){
     let roleNamesArr= [];
     for (const role of roleObjectsArr){
@@ -331,100 +138,4 @@ function getRoleNamesOnly(roleObjectsArr){
     return roleNamesArr; 
 }
 
-//functions to update employee role
-async function updateEmployeeRoleMain(){
-    let employeeObjectArr= await getCurrentEmployeeNamesIds(); 
-    let roleObjectsArr= await getRoleNamesIds(); 
-    askUpdateRoleQuestions(employeeObjectArr, roleObjectsArr).then(function(updateEmployeeData){
-        updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr, updateEmployeeData); 
-    })
-}
 
-function askUpdateRoleQuestions(employees, roles) {
-    employees = getEmployeeNamesOnly(employees); 
-    roles = getRoleNamesOnly(roles); 
-    const updateRoleQuestions= [
-        {type: "list",
-        name: "employeeToUpdate",
-        message: "Which employee's role do you want to update?",
-        choices: employees
-        },
-        {type: "list",
-        name: "newRole",
-        message: "What is the employee's new role?",
-        choices: roles
-        }
-    ]; 
-    return inquirer
-        .prompt(updateRoleQuestions); 
-}
-
-function updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr,updateEmployeeData){
-    let roleObject= roleObjectsArr.find(role => role.title === updateEmployeeData.newRole); 
-    let role_id= roleObject.id; 
-    let employeeObject = employeeObjectArr.find(employee => employee.name === updateEmployeeData.employeeToUpdate); 
-    let employeeId= employeeObject.id;  
-    connection.query(
-        `UPDATE employee SET ? WHERE ?`,
-        [
-            {
-                role_id: role_id
-            },
-            {
-                id: employeeId
-            }
-        ], 
-        function (err, res){
-            if (err) throw err; 
-            console.log( `Updated ${employeeObject.name} to the new role of ${roleObject.title}`); 
-            startSession(); 
-        }
-    ); 
-}
-
-async function updateEmployeeManagerMain(){
-    let employeeObjectArr = await getCurrentEmployeeNamesIds();
-    let managerObjectArr = employeeObjectArr;
-    managerObjectArr.push({name: "none", id: null}); 
-    askUpdateMangerQuestions(employeeObjectArr, managerObjectArr).then(function(answer){
-        updateEmployeeManagerSql(employeeObjectArr, managerObjectArr, answer); 
-    })
-}
-
-function askUpdateMangerQuestions(employees, managers){
-    employees = getEmployeeNamesOnly(employees); 
-    managers= getEmployeeNamesOnly(managers); 
-    const updateRoleQuestions= [
-        {type: "list",
-        name: "employeeToUpdate",
-        message: "Which employee's manager do you want to update?",
-        choices: employees
-        },
-        {type: "list",
-        name: "newManager",
-        message: "Who is the employee's new manager?",
-        choices: employees
-        }
-    ]; 
-    return inquirer
-        .prompt(updateRoleQuestions); 
-}
-
-async function updateEmployeeManagerSql(employeeObjectArr, managerObjectArr, updateEmployeeData){
-    let updatedEmployeeObject = employeeObjectArr.find(employee => employee.name === updateEmployeeData.employeeToUpdate); 
-    let updatedEmployeeId= updatedEmployeeObject.id;
-    let newManagerObject =  managerObjectArr.find(employee => employee.name === updateEmployeeData.newManager); 
-    let newMangerId= newManagerObject.id; 
-    try{
-        await db.query({
-            sql: `UPDATE employee
-                 SET manager_id = ${newMangerId}
-                 WHERE id= ${updatedEmployeeId}`, 
-
-        }); 
-        console.log(`Updated ${updatedEmployeeObject.name} to have ${newManagerObject.name} as her/his new manager.`); 
-        startSession(); 
-    } catch (err) {
-        if (err) throw err; 
-    }
-}
