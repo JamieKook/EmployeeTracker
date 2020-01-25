@@ -76,7 +76,7 @@ async function addEmployee(){
     managers = getEmployeeNamesOnly(employeeObjectArr); 
     roles= getRoleNamesOnly(roleObjectsArr); 
     inquirerPrompts.askNewEmployeeQuestions(roles, managers).then( function(answers){
-        const employee= new NewEmployee(answers.firstName, answers.lastName);
+        const employee= new NewEmployee(answers.firstName.trim(), answers.lastName.trim());
         if (employee.isValid){
             employee.checkForDuplicates(managers); 
             if (!employee.isDuplicate){
@@ -103,7 +103,7 @@ async function removeEmployee(){
         if (!employee.isManager){
             sqlQueries.removeEmployeeData(firstName, lastName, startSession);
         } else {
-            console.log(`\nYou cannot remove this employee!\n\nThey are the manager of${employee.createStringOfEmployees()}.\n\nPlease update the manager of${employee.createStringOfEmployees()} first.\n`); 
+            console.log(`\nYou cannot remove this employee!\n\nShe/he is the manager of${employee.createStringOfEmployees()}.\n\nPlease update the manager of${employee.createStringOfEmployees()} first.\n`); 
             startSession(); 
         }
     });  
