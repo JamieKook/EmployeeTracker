@@ -92,13 +92,20 @@ async function addEmployee(){
 }
 
 async function removeEmployee(){
-    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds(); 
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds();
     let employeeNames= getEmployeeNamesOnly(employeeObjectArr); 
     inquirerPrompts.askRemoveEmployeeQuestions(employeeNames).then(function(answer){
         let {employeeToRemove} = answer; 
         let firstName= employeeToRemove.split(" ")[0];
         let lastName=  employeeToRemove.split(" ")[1];
-        sqlQueries.removeEmployeeData(firstName, lastName, startSession);
+        let employee = new NewEmployee(firstName, lastName);
+        employee.checkForManager(employeeObjectArr); 
+        if (!employee.isManager){
+            sqlQueries.removeEmployeeData(firstName, lastName, startSession);
+        } else {
+            console.log(`\nYou cannot remove this employee!\n\nThey are the manager of${employee.createStringOfEmployees()}.\n\nPlease update the manager of${employee.createStringOfEmployees()} first.\n`); 
+            startSession(); 
+        }
     });  
 }
 
