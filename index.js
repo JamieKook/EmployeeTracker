@@ -77,14 +77,17 @@ async function addEmployee(){
     roles= getRoleNamesOnly(roleObjectsArr); 
     inquirerPrompts.askNewEmployeeQuestions(roles, managers).then( function(answers){
         const employee= new NewEmployee(answers.firstName, answers.lastName);
-        console.log(employee); 
         if (employee.isValid){
-            sqlQueries.insertEmployeeData(roleObjectsArr, employeeObjectArr, answers, employee, startSession); 
+            employee.checkForDuplicates(managers); 
+            if (!employee.isDuplicate){
+                sqlQueries.insertEmployeeData(roleObjectsArr, employeeObjectArr, answers, employee, startSession); 
+            } else{
+                startSession(); 
+            }
         } else {
-            console.log("\nEmployee was NOT added to the database.\n\nPlease Re-enter this employee\n"); 
+            console.log("\nEmployee was NOT added to the database.\n\nPlease Re-enter this employee\n\n"); 
             addEmployee(); 
         }
-        
     });   
 }
 
