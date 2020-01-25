@@ -1,5 +1,6 @@
 const SqlQueries = require("./lib/sql_queries"); 
-const InquierPrompts = require("./lib/inquirer_prompts"); 
+const InquierPrompts = require("./lib/inquirer_prompts");
+const NewEmployee= require("./lib/newemployee");  
 
 const sqlQueries = new SqlQueries(); 
 const inquirerPrompts= new InquierPrompts();   
@@ -75,7 +76,15 @@ async function addEmployee(){
     managers = getEmployeeNamesOnly(employeeObjectArr); 
     roles= getRoleNamesOnly(roleObjectsArr); 
     inquirerPrompts.askNewEmployeeQuestions(roles, managers).then( function(answers){
-        sqlQueries.insertEmployeeData(roleObjectsArr, employeeObjectArr, answers, startSession); 
+        const employee= new NewEmployee(answers.firstName, answers.lastName);
+        console.log(employee); 
+        if (employee.isValid){
+            sqlQueries.insertEmployeeData(roleObjectsArr, employeeObjectArr, answers, employee, startSession); 
+        } else {
+            console.log("\nEmployee was NOT added to the database.\n\nPlease Re-enter this employee\n"); 
+            addEmployee(); 
+        }
+        
     });   
 }
 

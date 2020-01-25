@@ -24,6 +24,7 @@
     "console.table": "^0.10.0",
     "e": "0.0.4",
     "inquirer": "^7.0.3",
+    "jest": "^25.1.0",
     "mysql": "^2.18.0",
     "mysql-promisify": "^1.0.1",
     "util": "^0.12.1"
