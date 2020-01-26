@@ -1,6 +1,7 @@
 const SqlQueries = require("./lib/sql_queries"); 
 const InquierPrompts = require("./lib/inquirer_prompts");
 const Employee= require("./lib/newemployee");  
+const Department = require("./lib/department"); 
 
 const sqlQueries = new SqlQueries(); 
 const inquirerPrompts= new InquierPrompts();   
@@ -37,6 +38,9 @@ function switchUserChoice(action){
             break; 
         case "Update Employee Manager": 
             updateEmployeeManagerMain(); 
+            break; 
+        case "Add Department": 
+            addDepartmentMain(); 
             break; 
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
@@ -95,11 +99,9 @@ async function removeEmployee(){
     let employeeObjectArr = await sqlQueries.getCurrentEmployeeData();
     let employeeNames= getEmployeeNamesOnly(employeeObjectArr); 
     inquirerPrompts.askRemoveEmployeeQuestions(employeeNames).then(function(answer){
-        let employeeName= splitName(answer.employeeToRemove); 
-        let employee = new Employee(employeeName.firstName, employeeName.lastName);
-        employee.checkForManager(employeeObjectArr); 
+        const employee= initializeRemovedEmployee(answer, employeeObjectArr)
         if (!employee.isManager){
-            sqlQueries.removeEmployeeData(firstName, lastName, startSession);
+            sqlQueries.removeEmployeeData(employee, startSession);
         } else {
             console.log(`\nYou cannot remove this employee!\n\nShe/he is the manager of${employee.createStringOfEmployees()}.\n\nPlease update the manager of${employee.createStringOfEmployees()} first.\n`); 
             startSession(); 
@@ -113,14 +115,8 @@ async function updateEmployeeRoleMain(){
     let employees = getEmployeeNamesOnly(employeeObjectArr); 
     let roles = getRoleNamesOnly(roleObjectsArr);  
     inquirerPrompts.askUpdateRoleQuestions(employees, roles).then(function(answers){ 
-        let employeeName = splitName(answers.employeeToUpdate); 
-        let roleObject= roleObjectsArr.find(role => role.title === answers.newRole); 
-        const employee = new Employee(employeeName.firstName, employeeName.lastName, null, roleObject.id); 
-        employee.getEmployeeId(employeeObjectArr); 
-        employee.getRoleTitle(roleObjectsArr); 
-        let nonupdatedEmployeeObject = employeeObjectArr.find(oldEmployee => oldEmployee.id === employee.id); 
-        let previousRoleId = nonupdatedEmployeeObject.roleId; 
-        if (previousRoleId !== employee.roleId){
+        const employee = initializeUpdatedRoleEmployee(answers, employeeObjectArr, roleObjectsArr);
+        if (employee.isUpdated){
             sqlQueries.updateEmployeeRoleSql(employee, startSession); 
         } else {
             console.log(`\n${employee.fullName} already has the role of ${employee.roleTitle}!\n`);
@@ -137,8 +133,28 @@ async function updateEmployeeManagerMain(){
     let employees = getEmployeeNamesOnly(employeeObjectArr); 
     let managers= getEmployeeNamesOnly(managerObjectArr); 
     inquirerPrompts.askUpdateMangerQuestions(employees, managers).then(function(answers){
-        sqlQueries.updateEmployeeManagerSql(employeeObjectArr, managerObjectArr, answers, startSession); 
+       const employee = initializeUpdatedManagerEmployee(answers,employeeObjectArr, managerObjectArr); 
+       if (employee.isUpdated){
+        sqlQueries.updateEmployeeManagerSql(employee, startSession); 
+       } else {
+        console.log(`\n${employee.fullName} already has ${employee.managerName} as her/his manager!\n`);
+        startSession(); 
+       }
+        
     })
+}
+
+async function addDepartmentMain(){
+    let departmentNames = await sqlQueries.getDepartmentNamesIds(); 
+    inquirerPrompts.askNewDepartmentQuestions().then(function(answer){
+        const department= initializeNewDepartment(answer, departmentNames); 
+        if (department.isValid && !department.isDuplicate) {
+            sqlQueries.addDepartmentData(department, startSession); 
+        }else{
+            console.log("\nDepartment was NOT added to the database.\n\n"); 
+            startSession(); 
+        }
+    });
 }
 
 //helper functions
@@ -170,4 +186,40 @@ function splitName(name){
     let firstName= name.split(" ")[0];
     let lastName=  name.split(" ")[1];
     return {firstName: firstName, lastName: lastName}; 
+}
+
+function initializeRemovedEmployee(answer, employeeObjectArr){
+    let employeeName= splitName(answer.employeeToRemove); 
+    let employee = new Employee(employeeName.firstName, employeeName.lastName);
+    employee.checkForManager(employeeObjectArr); 
+    return employee; 
+}
+
+ function initializeUpdatedRoleEmployee(answers, employeeObjectArr, roleObjectsArr){
+    let employeeName = splitName(answers.employeeToUpdate); 
+    const employee = new Employee(employeeName.firstName, employeeName.lastName, null, answers.newRole); 
+    employee.getEmployeeId(employeeObjectArr); 
+    employee.getRoleId(roleObjectsArr); 
+    employee.checkUpdatedRole(employeeObjectArr); 
+    return employee; 
+}
+
+function initializeUpdatedManagerEmployee(answers,employeeObjectArr, managerObjectArr){
+    let employeeName = splitName(answers.employeeToUpdate); 
+    const employee = new Employee(employeeName.firstName, employeeName.lastName, null, null, answers.newManager); 
+    employee.getEmployeeId(employeeObjectArr); 
+    employee.getManagerId(managerObjectArr);
+    employee.checkUpdatedManager(employeeObjectArr); 
+    if (employee.id === employee.managerId){
+        employee.managerId = null; 
+        employee.managerName = "none"; 
+    }
+    return employee; 
+}
+
+function initializeNewDepartment(answer, departmentNames){
+    let {newDepartment} = answer; 
+    const department = new Department(newDepartment); 
+    department.checkForDuplicates(departmentNames); 
+    return department; 
 }
