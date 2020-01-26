@@ -1,6 +1,6 @@
 const SqlQueries = require("./lib/sql_queries"); 
 const InquierPrompts = require("./lib/inquirer_prompts");
-const NewEmployee= require("./lib/newemployee");  
+const Employee= require("./lib/newemployee");  
 
 const sqlQueries = new SqlQueries(); 
 const inquirerPrompts= new InquierPrompts();   
@@ -59,7 +59,7 @@ async function viewByDepartmentMain(){
 }
 
 async function viewByManagerMain(){
-    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds(); 
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeData(); 
     employeeObjectArr.push({name: "none", id: null});
     names = getEmployeeNamesOnly(employeeObjectArr); 
     inquirerPrompts.askManager(names).then(function(answer){
@@ -71,12 +71,12 @@ async function viewByManagerMain(){
 
 async function addEmployee(){
     let roleObjectsArr= await sqlQueries.getRoleNamesIds();
-    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds(); 
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeData(); 
     employeeObjectArr.push({name: "none", id: null});
     managers = getEmployeeNamesOnly(employeeObjectArr); 
     roles= getRoleNamesOnly(roleObjectsArr); 
     inquirerPrompts.askNewEmployeeQuestions(roles, managers).then( function(answers){
-        const employee= new NewEmployee(answers.firstName.trim(), answers.lastName.trim());
+        const employee= new Employee(answers.firstName.trim(), answers.lastName.trim());
         if (employee.isValid){
             employee.checkForDuplicates(managers); 
             if (!employee.isDuplicate){
@@ -92,13 +92,11 @@ async function addEmployee(){
 }
 
 async function removeEmployee(){
-    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds();
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeData();
     let employeeNames= getEmployeeNamesOnly(employeeObjectArr); 
     inquirerPrompts.askRemoveEmployeeQuestions(employeeNames).then(function(answer){
-        let {employeeToRemove} = answer; 
-        let firstName= employeeToRemove.split(" ")[0];
-        let lastName=  employeeToRemove.split(" ")[1];
-        let employee = new NewEmployee(firstName, lastName);
+        let employeeName= splitName(answer.employeeToRemove); 
+        let employee = new Employee(employeeName.firstName, employeeName.lastName);
         employee.checkForManager(employeeObjectArr); 
         if (!employee.isManager){
             sqlQueries.removeEmployeeData(firstName, lastName, startSession);
@@ -110,17 +108,30 @@ async function removeEmployee(){
 }
 
 async function updateEmployeeRoleMain(){
-    let employeeObjectArr= await sqlQueries.getCurrentEmployeeNamesIds(); 
+    let employeeObjectArr= await sqlQueries.getCurrentEmployeeData(); 
     let roleObjectsArr= await sqlQueries.getRoleNamesIds();
     let employees = getEmployeeNamesOnly(employeeObjectArr); 
     let roles = getRoleNamesOnly(roleObjectsArr);  
-    inquirerPrompts.askUpdateRoleQuestions(employees, roles).then(function(answers){
-        sqlQueries.updateEmployeeRoleSql(employeeObjectArr, roleObjectsArr, answers, startSession); 
+    inquirerPrompts.askUpdateRoleQuestions(employees, roles).then(function(answers){ 
+        let employeeName = splitName(answers.employeeToUpdate); 
+        let roleObject= roleObjectsArr.find(role => role.title === answers.newRole); 
+        const employee = new Employee(employeeName.firstName, employeeName.lastName, null, roleObject.id); 
+        employee.getEmployeeId(employeeObjectArr); 
+        employee.getRoleTitle(roleObjectsArr); 
+        let nonupdatedEmployeeObject = employeeObjectArr.find(oldEmployee => oldEmployee.id === employee.id); 
+        let previousRoleId = nonupdatedEmployeeObject.roleId; 
+        if (previousRoleId !== employee.roleId){
+            sqlQueries.updateEmployeeRoleSql(employee, startSession); 
+        } else {
+            console.log(`\n${employee.fullName} already has the role of ${employee.roleTitle}!\n`);
+            startSession(); 
+        }; 
+        
     })
 }
 
 async function updateEmployeeManagerMain(){
-    let employeeObjectArr = await sqlQueries.getCurrentEmployeeNamesIds();
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeData();
     let managerObjectArr = employeeObjectArr.map(object => object);
     managerObjectArr.push({name: "none", id: null}); 
     let employees = getEmployeeNamesOnly(employeeObjectArr); 
@@ -155,4 +166,8 @@ function getRoleNamesOnly(roleObjectsArr){
     return roleNamesArr; 
 }
 
-
+function splitName(name){
+    let firstName= name.split(" ")[0];
+    let lastName=  name.split(" ")[1];
+    return {firstName: firstName, lastName: lastName}; 
+}
