@@ -42,6 +42,11 @@ function switchUserChoice(action){
         case "Add Department": 
             addDepartmentMain(); 
             break; 
+        case "Remove Department": 
+            removeDepartmentMain(); 
+            break; 
+        case "Add Role":
+
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
             sqlQueries.endConnection(); 
@@ -80,17 +85,12 @@ async function addEmployee(){
     managers = getEmployeeNamesOnly(employeeObjectArr); 
     roles= getRoleNamesOnly(roleObjectsArr); 
     inquirerPrompts.askNewEmployeeQuestions(roles, managers).then( function(answers){
-        const employee= new Employee(answers.firstName.trim(), answers.lastName.trim());
-        if (employee.isValid){
-            employee.checkForDuplicates(managers); 
-            if (!employee.isDuplicate){
-                sqlQueries.insertEmployeeData(roleObjectsArr, employeeObjectArr, answers, employee, startSession); 
-            } else{
-                startSession(); 
-            }
+        const employee= initializeNewEmployee(answers, employeeObjectArr, roleObjectsArr); 
+        if (employee.isValid && !employee.isDuplicate){
+                sqlQueries.insertEmployeeData(employee, startSession); 
         } else {
             console.log("\nEmployee was NOT added to the database.\n\nPlease Re-enter this employee\n\n"); 
-            addEmployee(); 
+            startSession();  
         }
     });   
 }
@@ -145,9 +145,9 @@ async function updateEmployeeManagerMain(){
 }
 
 async function addDepartmentMain(){
-    let departmentNames = await sqlQueries.getDepartmentNamesIds(); 
+    let departmentObjectArr = await sqlQueries.getDepartmentNamesIds(); 
     inquirerPrompts.askNewDepartmentQuestions().then(function(answer){
-        const department= initializeNewDepartment(answer, departmentNames); 
+        const department= initializeNewDepartment(answer, departmentObjectArr); 
         if (department.isValid && !department.isDuplicate) {
             sqlQueries.addDepartmentData(department, startSession); 
         }else{
@@ -157,6 +157,21 @@ async function addDepartmentMain(){
     });
 }
 
+async function removeDepartmentMain(){
+    let departmentObjectArr = await sqlQueries.getDepartmentNamesIds();
+    console.log(departmentObjectArr); 
+    let roleObjectsArr = await sqlQueries.getRoleNamesIds(); 
+    let departmentNames = getDepartmentNamesOnly(departmentObjectArr);  
+    inquirerPrompts.askRemoveDepartmentQuestions(departmentNames).then(function(answer){
+        const department = initializeRemovedDepartment(answer, departmentObjectArr, roleObjectsArr); 
+        if (!department.hasRoles){
+            sqlQueries.removeDepartmentData(department, startSession); 
+        } else {
+            console.log(`\nYou cannot remove this department!\n\n It includes the role(s) of${department.createStringOfRoles()}.\n\nPlease remove the role(s) of${department.createStringOfRoles()} first.\n`); 
+            startSession(); 
+        }
+    })
+}
 //helper functions
 function getDepartmentNamesOnly(departmentObjectsArr){
     let departmentNamesArr= [];
@@ -188,6 +203,15 @@ function splitName(name){
     return {firstName: firstName, lastName: lastName}; 
 }
 
+function initializeNewEmployee(answers, employeeObjectArr, roleObjectsArr){
+    const employee= new Employee(answers.firstName.trim(), answers.lastName.trim(), null, answers.role, answers.manager);
+    employee.getEmployeeId(employeeObjectArr);
+    employee.getRoleId(roleObjectsArr);
+    employee.getManagerId(employeeObjectArr); 
+    employee.checkForDuplicates(managers); 
+    return employee; 
+}
+
 function initializeRemovedEmployee(answer, employeeObjectArr){
     let employeeName= splitName(answer.employeeToRemove); 
     let employee = new Employee(employeeName.firstName, employeeName.lastName);
@@ -217,9 +241,17 @@ function initializeUpdatedManagerEmployee(answers,employeeObjectArr, managerObje
     return employee; 
 }
 
-function initializeNewDepartment(answer, departmentNames){
+function initializeNewDepartment(answer, departmentObjectArr){
     let {newDepartment} = answer; 
-    const department = new Department(newDepartment); 
-    department.checkForDuplicates(departmentNames); 
+    const department = new Department(newDepartment.trim()); 
+    department.checkForDuplicates(departmentObjectArr); 
+    return department; 
+}
+
+function initializeRemovedDepartment(answer, departmentObjectArr, roleObjectsArr){
+    let {departmentToRemove} = answer; 
+    const department = new Department(departmentToRemove);
+    department.getDepartmentId(departmentObjectArr); 
+    department.checkForRoles(roleObjectsArr);
     return department; 
 }
