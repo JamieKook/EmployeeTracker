@@ -1,7 +1,8 @@
 const SqlQueries = require("./lib/sql_queries"); 
 const InquierPrompts = require("./lib/inquirer_prompts");
 const Employee= require("./lib/newemployee");  
-const Department = require("./lib/department"); 
+const Department = require("./lib/department");
+const Role = require("./lib/role"); 
 
 const sqlQueries = new SqlQueries(); 
 const inquirerPrompts= new InquierPrompts();   
@@ -18,6 +19,7 @@ function startSession() {
 
 function switchUserChoice(action){
     switch (action) {
+        //Employee Choices
         case "View All Employees": 
             sqlQueries.viewAllData(startSession); 
             break; 
@@ -39,14 +41,29 @@ function switchUserChoice(action){
         case "Update Employee Manager": 
             updateEmployeeManagerMain(); 
             break; 
+        //department choices
+        case "View All Departments":
+            sqlQueries.viewAllDepartments(startSession); 
+            break; 
         case "Add Department": 
             addDepartmentMain(); 
             break; 
         case "Remove Department": 
             removeDepartmentMain(); 
             break; 
+        //role choices
+        case "View All Roles":
+            sqlQueries.viewAllRoles(startSession); 
+            break; 
+        case "View All Roles By Department":
+            viewRolesByDepartmentMain(); 
+            break; 
         case "Add Role":
-
+            addRoleMain(); 
+            break; 
+        case "Remove Role":
+                removeRoleMain(); 
+                break; 
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
             sqlQueries.endConnection(); 
@@ -58,8 +75,9 @@ function switchUserChoice(action){
 }
 
 //main option functions from switch statement
+//Employee Choices
 async function viewByDepartmentMain(){
-    let departmentObjectArr = await sqlQueries.getDepartmentNamesIds(); 
+    let departmentObjectArr = await sqlQueries.getDepartmentData(); 
     let departmentNames = getDepartmentNamesOnly(departmentObjectArr); 
     inquirerPrompts.askDepartment(departmentNames).then(function(answer){
         let {departmentChoice}= answer; 
@@ -79,13 +97,13 @@ async function viewByManagerMain(){
 }
 
 async function addEmployee(){
-    let roleObjectsArr= await sqlQueries.getRoleNamesIds();
+    let roleObjectArr= await sqlQueries.getRoleData();
     let employeeObjectArr = await sqlQueries.getCurrentEmployeeData(); 
     employeeObjectArr.push({name: "none", id: null});
     managers = getEmployeeNamesOnly(employeeObjectArr); 
-    roles= getRoleNamesOnly(roleObjectsArr); 
+    roles= getRoleNamesOnly(roleObjectArr); 
     inquirerPrompts.askNewEmployeeQuestions(roles, managers).then( function(answers){
-        const employee= initializeNewEmployee(answers, employeeObjectArr, roleObjectsArr); 
+        const employee= initializeNewEmployee(answers, employeeObjectArr, roleObjectArr); 
         if (employee.isValid && !employee.isDuplicate){
                 sqlQueries.insertEmployeeData(employee, startSession); 
         } else {
@@ -111,11 +129,11 @@ async function removeEmployee(){
 
 async function updateEmployeeRoleMain(){
     let employeeObjectArr= await sqlQueries.getCurrentEmployeeData(); 
-    let roleObjectsArr= await sqlQueries.getRoleNamesIds();
+    let roleObjectArr= await sqlQueries.getRoleData();
     let employees = getEmployeeNamesOnly(employeeObjectArr); 
-    let roles = getRoleNamesOnly(roleObjectsArr);  
+    let roles = getRoleNamesOnly(roleObjectArr);  
     inquirerPrompts.askUpdateRoleQuestions(employees, roles).then(function(answers){ 
-        const employee = initializeUpdatedRoleEmployee(answers, employeeObjectArr, roleObjectsArr);
+        const employee = initializeUpdatedRoleEmployee(answers, employeeObjectArr, roleObjectArr);
         if (employee.isUpdated){
             sqlQueries.updateEmployeeRoleSql(employee, startSession); 
         } else {
@@ -144,8 +162,20 @@ async function updateEmployeeManagerMain(){
     })
 }
 
+//Department Choices
+async function viewRolesByDepartmentMain(){
+    let departmentObjectArr = await sqlQueries.getDepartmentData(); 
+    let departmentNames = getDepartmentNamesOnly(departmentObjectArr); 
+  
+    inquirerPrompts.askDepartment(departmentNames).then(function(answer){
+        const department = new Department(answer.departmentChoice); 
+        department.getDepartmentId(departmentObjectArr); 
+        sqlQueries.getRolesByDepartment(department, startSession); 
+    })
+}
+
 async function addDepartmentMain(){
-    let departmentObjectArr = await sqlQueries.getDepartmentNamesIds(); 
+    let departmentObjectArr = await sqlQueries.getDepartmentData(); 
     inquirerPrompts.askNewDepartmentQuestions().then(function(answer){
         const department= initializeNewDepartment(answer, departmentObjectArr); 
         if (department.isValid && !department.isDuplicate) {
@@ -158,12 +188,11 @@ async function addDepartmentMain(){
 }
 
 async function removeDepartmentMain(){
-    let departmentObjectArr = await sqlQueries.getDepartmentNamesIds();
-    console.log(departmentObjectArr); 
-    let roleObjectsArr = await sqlQueries.getRoleNamesIds(); 
+    let departmentObjectArr = await sqlQueries.getDepartmentData();
+    let roleObjectArr = await sqlQueries.getRoleData(); 
     let departmentNames = getDepartmentNamesOnly(departmentObjectArr);  
     inquirerPrompts.askRemoveDepartmentQuestions(departmentNames).then(function(answer){
-        const department = initializeRemovedDepartment(answer, departmentObjectArr, roleObjectsArr); 
+        const department = initializeRemovedDepartment(answer, departmentObjectArr, roleObjectArr); 
         if (!department.hasRoles){
             sqlQueries.removeDepartmentData(department, startSession); 
         } else {
@@ -172,10 +201,43 @@ async function removeDepartmentMain(){
         }
     })
 }
+
+//Role Choices
+async function addRoleMain(){
+    let roleObjectArr = await sqlQueries.getRoleData();
+    let departmentObjectArr = await sqlQueries.getDepartmentData(); 
+    let departmentNames = getDepartmentNamesOnly(departmentObjectArr);  
+    inquirerPrompts.askNewRoleQuestions(departmentNames).then(function(answers){
+        const role= initializeNewRole(answers, roleObjectArr, departmentObjectArr); 
+        if (role.isValid && !role.isDuplicate) {
+            sqlQueries.addRoleData(role, startSession); 
+        }else{
+            console.log("\nRole was NOT added to the database.\n\n"); 
+            startSession(); 
+        }
+    });
+}
+
+async function removeRoleMain(){
+    let roleObjectArr = await sqlQueries.getRoleData();
+    let employeeObjectArr = await sqlQueries.getCurrentEmployeeData(); 
+    let roleNames = getRoleNamesOnly(roleObjectArr);  
+    inquirerPrompts.askRemoveRoleQuestions(roleNames).then(function(answer){
+        const role = initializeRemovedRole(answer, roleObjectArr, employeeObjectArr); 
+        if (!role.hasEmployees){
+            sqlQueries.removeRoleData(role, startSession); 
+        } else {
+            console.log(`\nYou cannot remove this role!\n\n It is the role of employees ${role.createStringOfEmployees()}.\n\nPlease change the role(s) of${role.createStringOfEmployees()} first.\n`); 
+            startSession(); 
+        }
+    })
+}
+
 //helper functions
-function getDepartmentNamesOnly(departmentObjectsArr){
+//Get names from arrays
+function getDepartmentNamesOnly(departmentObjectArr){
     let departmentNamesArr= [];
-    for (const department of departmentObjectsArr){
+    for (const department of departmentObjectArr){
         departmentNamesArr.push(department.name); 
     }
     return departmentNamesArr; 
@@ -189,9 +251,9 @@ function getEmployeeNamesOnly(employeeObjectArr){
     return employeeNamesArr; 
 }
 
-function getRoleNamesOnly(roleObjectsArr){
+function getRoleNamesOnly(roleObjectArr){
     let roleNamesArr= [];
-    for (const role of roleObjectsArr){
+    for (const role of roleObjectArr){
         roleNamesArr.push(role.title); 
     }
     return roleNamesArr; 
@@ -203,10 +265,12 @@ function splitName(name){
     return {firstName: firstName, lastName: lastName}; 
 }
 
-function initializeNewEmployee(answers, employeeObjectArr, roleObjectsArr){
+//Initialize Objects
+//Employees
+function initializeNewEmployee(answers, employeeObjectArr, roleObjectArr){
     const employee= new Employee(answers.firstName.trim(), answers.lastName.trim(), null, answers.role, answers.manager);
     employee.getEmployeeId(employeeObjectArr);
-    employee.getRoleId(roleObjectsArr);
+    employee.getRoleId(roleObjectArr);
     employee.getManagerId(employeeObjectArr); 
     employee.checkForDuplicates(managers); 
     return employee; 
@@ -219,11 +283,11 @@ function initializeRemovedEmployee(answer, employeeObjectArr){
     return employee; 
 }
 
- function initializeUpdatedRoleEmployee(answers, employeeObjectArr, roleObjectsArr){
+ function initializeUpdatedRoleEmployee(answers, employeeObjectArr, roleObjectArr){
     let employeeName = splitName(answers.employeeToUpdate); 
     const employee = new Employee(employeeName.firstName, employeeName.lastName, null, answers.newRole); 
     employee.getEmployeeId(employeeObjectArr); 
-    employee.getRoleId(roleObjectsArr); 
+    employee.getRoleId(roleObjectArr); 
     employee.checkUpdatedRole(employeeObjectArr); 
     return employee; 
 }
@@ -241,6 +305,7 @@ function initializeUpdatedManagerEmployee(answers,employeeObjectArr, managerObje
     return employee; 
 }
 
+//Departments
 function initializeNewDepartment(answer, departmentObjectArr){
     let {newDepartment} = answer; 
     const department = new Department(newDepartment.trim()); 
@@ -248,10 +313,25 @@ function initializeNewDepartment(answer, departmentObjectArr){
     return department; 
 }
 
-function initializeRemovedDepartment(answer, departmentObjectArr, roleObjectsArr){
+function initializeRemovedDepartment(answer, departmentObjectArr, roleObjectArr){
     let {departmentToRemove} = answer; 
     const department = new Department(departmentToRemove);
     department.getDepartmentId(departmentObjectArr); 
-    department.checkForRoles(roleObjectsArr);
+    department.checkForRoles(roleObjectArr);
     return department; 
+}
+
+//Roles
+function initializeNewRole(answers, roleObjectArr, departmentObjectArr){
+    const role = new Role(answers.newRole.trim(), answers.salary.trim(), answers.department); 
+    role.checkForDuplicates(roleObjectArr);
+    role.getDepartmentId(departmentObjectArr);  
+    return role; 
+}
+
+function initializeRemovedRole(answer, roleObjectArr, employeeObjectArr){
+    const role = new Role(answer.roleToRemove);
+    role.getRoleId(roleObjectArr); 
+    role.checkForEmployees(employeeObjectArr);
+    return role; 
 }
