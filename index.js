@@ -81,6 +81,9 @@ function switchUserChoice(action){
         case "Remove Department": 
             removeDepartmentMain(); 
             break; 
+        case "View Total Utilzied Budget By Department": 
+            BudgetMain(); 
+            break; 
         //role choices
         case "View All Roles":
             sqlQueries.viewAllRoles(startSession); 
@@ -235,6 +238,21 @@ async function removeDepartmentMain(){
         }
     })
 }
+
+async function BudgetMain(){
+    let departmentObjectArr = await sqlQueries.getDepartmentData(); 
+    departmentNames = initializer.getDepartmentNamesOnly(departmentObjectArr); 
+    inquirerPrompts.askDepartment(departmentNames).then(async function(answer){
+        let {departmentChoice} = answer; 
+        let results = await sqlQueries.getTableByDepartment(departmentChoice); 
+        let budget = null; 
+        for (const employee of results){
+            budget += employee.salary; 
+        }
+        console.log(`The total utilized budget for the ${departmentChoice} department is $${budget}\n\n`); 
+        startSession(); 
+    })
+}; 
 
 //Role Choices
 async function addRoleMain(){
