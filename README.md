@@ -68,18 +68,18 @@ Same functionality as updating employees.
 
 This project utilizes javascript node and various node packages: 
 
-*   SqlQuries is a custom coded module I created to house all mysql functionality. This module contains: 
+1.   SqlQuries is a custom coded module I created to house all mysql functionality. This module contains: 
   *  mysql-promisify- Creates the connection to the database and preforms all queries asynchronously, returning data as promises.
   * console.table- Formats data into pretty tables when console logged. 
   
-*   InquirerPrompts is another custom coded module I created to contain all inqurier prompts. 
+2.   InquirerPrompts is another custom coded module I created to contain all inqurier prompts. 
 
-*   Initializer is custom coded as well to set up the new objects with their necessary information since data used to create new objects comes from various sources and different formats. It contains the following object classes:
+3.   Initializer is custom coded as well to set up the new objects with their necessary information since data used to create new objects comes from various sources and different formats. It contains the following object classes:
   * Employee
   * Department
   * Role
 
-*   Jest is used to test all of the modules I coded. 
+4.   Jest is used to test all of the modules I coded. 
 
 
 ## Meta 
