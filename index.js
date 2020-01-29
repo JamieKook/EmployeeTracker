@@ -270,7 +270,6 @@ async function removeRoleMain(){
     })
 }
 
-//Need to keep working on this
 async function updateRoleDepartmentMain(){
     let roleObjectArr= await sqlQueries.getRoleData(); 
     let departmentObjectArr= await sqlQueries.getDepartmentData();
@@ -392,7 +391,6 @@ function initializeRemovedRole(answer, roleObjectArr, employeeObjectArr){
     return role; 
 }
 
-//work on this
 function initializeUpdatedDepartmentRole(answers, roleObjectArr, departmentObjectArr){
     const role = new Role (answers.roleToUpdate, null, answers.newDepartment); 
     role.getRoleId(roleObjectArr); 
