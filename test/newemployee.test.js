@@ -9,6 +9,7 @@ test ("Should use paramters to create properties", () =>{
     expect(e.id).toBe(2);
     expect(e.roleTitle).toBe("roleTitle");
     expect(e.managerName).toBe("manager"); 
+    expect(e.isValid).toBe(true); 
   });
 
 test ("Should return false for isValid if an empty string is entered as the first name", () =>{ 

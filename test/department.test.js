@@ -5,6 +5,7 @@ const Department = require("../lib/department");
 test ("Should use paramters to create properties", () =>{ 
     const d = new Department( "Name"); 
     expect(d.name).toBe("Name"); 
+    expect(d.isValid).toBe(true); 
   });
 
 test ("Should return false for isValid if an empty string is entered as name", () =>{ 
