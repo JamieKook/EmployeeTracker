@@ -12,9 +12,40 @@ sqlQueries.beginConnection(startSession);
 function startSession() {
     inquirerPrompts.mainAsk().then(function(choice){
         let {action} = choice;  
-        switchUserChoice(action); 
+        switchMangerment(action); 
         }
     )
+}
+
+function switchMangerment(action){
+    switch (action) {
+        //Employee Choices
+        case "Employees": 
+            inquirerPrompts.EmployeeAsk().then(function(choice){
+                let {action}= choice; 
+                switchUserChoice(action); 
+            })
+            break; 
+        case "Departments": 
+            inquirerPrompts.DepartmentAsk().then(function(choice){
+                let {action}= choice; 
+                switchUserChoice(action); 
+            })
+            break; 
+        case "Roles": 
+            inquirerPrompts.RoleAsk().then(function(choice){
+                let {action}= choice; 
+                switchUserChoice(action); 
+            })
+            break; 
+        case "End Session": 
+            console.log("Thank you for using Employee Tracker"); 
+            sqlQueries.endConnection(); 
+            break; 
+        default:
+            console.log("We don't have that functionality yet. Sorry."); 
+            sqlQueries.endConnection(); 
+        }
 }
 
 function switchUserChoice(action){
@@ -62,15 +93,21 @@ function switchUserChoice(action){
             addRoleMain(); 
             break; 
         case "Remove Role":
-                removeRoleMain(); 
-                break; 
+            removeRoleMain(); 
+            break; 
+        case "Update Role Department":
+            updateRoleDepartmentMain(); 
+            break; 
+        case "Go Back To Main Menu":
+            startSession(); 
+            break; 
         case "End Session": 
             console.log("Thank you for using Employee Tracker"); 
             sqlQueries.endConnection(); 
             break; 
         default:
             console.log("We don't have that functionality yet. Sorry."); 
-            sqlQueries.endConnection(); 
+            startSession(); 
     }
 }
 
@@ -233,6 +270,24 @@ async function removeRoleMain(){
     })
 }
 
+//Need to keep working on this
+async function updateRoleDepartmentMain(){
+    let roleObjectArr= await sqlQueries.getRoleData(); 
+    let departmentObjectArr= await sqlQueries.getDepartmentData();
+    let roles = getRoleNamesOnly(roleObjectArr); 
+    let departments = getDepartmentNamesOnly(departmentObjectArr);  
+    inquirerPrompts.askUpdateDepartmentQuestions(roles, departments).then(function(answers){ 
+        const role = initializeUpdatedRoleEmployee(answers, roleObjectArr, departmentObjectArr);
+        if (role.isUpdated){
+            sqlQueries.updateEmployeeRoleSql(employee, startSession); 
+        } else {
+            console.log(`\n${employee.fullName} already has the role of ${employee.roleTitle}!\n`);
+            startSession(); 
+        }; 
+        
+    })
+}
+
 //helper functions
 //Get names from arrays
 function getDepartmentNamesOnly(departmentObjectArr){
@@ -331,7 +386,17 @@ function initializeNewRole(answers, roleObjectArr, departmentObjectArr){
 
 function initializeRemovedRole(answer, roleObjectArr, employeeObjectArr){
     const role = new Role(answer.roleToRemove);
-    role.getRoleId(roleObjectArr); 
+    role.getRoleId(roleObjectArr);
+    console.log(role.id);  
     role.checkForEmployees(employeeObjectArr);
+    return role; 
+}
+
+//work on this
+function initializeUpdatedDepartmentRole(answers, roleObjectArr, departmentObjectArr){
+    const role = new Role (answers.roleToUpdate, null, answers.newDepartment); 
+    role.getRoleId(roleObjectArr); 
+    role.getDepartmentId(departmentObjectArr); 
+    role.checkUpdatedDepartment(roleObjectArr); 
     return role; 
 }
