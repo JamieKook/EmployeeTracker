@@ -18,7 +18,6 @@ function startSession() {
 
 function switchMangerment(action){
     switch (action) {
-        //Employee Choices
         case "Employees": 
             inquirerPrompts.EmployeeAsk().then(function(choice){
                 let {action}= choice; 
@@ -82,7 +81,7 @@ function switchUserChoice(action){
             removeDepartmentMain(); 
             break; 
         case "View Total Utilzied Budget By Department": 
-            BudgetMain(); 
+            budgetMain(); 
             break; 
         //role choices
         case "View All Roles":
@@ -239,7 +238,7 @@ async function removeDepartmentMain(){
     })
 }
 
-async function BudgetMain(){
+async function budgetMain(){
     let departmentObjectArr = await sqlQueries.getDepartmentData(); 
     departmentNames = initializer.getDepartmentNamesOnly(departmentObjectArr); 
     inquirerPrompts.askDepartment(departmentNames).then(async function(answer){
