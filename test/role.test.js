@@ -6,7 +6,7 @@ test ("Should use paramters to create properties", () =>{
     const r = new Role( "rolename",200, "department"); 
     expect(r.name).toBe("Rolename"); 
     expect(r.salary).toBe(200);
-    expect(r.departmentName).toBe("department");
+    expect(r.departmentName).toBe("Department");
     expect(r.isValid).toBe(true); 
   });
 
@@ -48,8 +48,14 @@ test ("Should return false for isValid if a undefined value is entered as the sa
 });
 
 test ("Should return false for isValid if a string is entered as the salary", () =>{ 
-    const r = new Role("name", "one1"); 
+    const r = new Role("name", "120sl"); 
     expect(r.isValid).toBe(false); 
+});
+
+test ("Should return a number for salary if it's original input type is a string", () =>{ 
+    const r = new Role("name", " 100  "); 
+    expect(r.salary).toBe(100); 
+    expect(r.isValid).toBe(true); 
 });
 
 ////---------------------Methods
@@ -69,21 +75,21 @@ test ("getRoleId method should return null if role is not in database", ()=>{
 
 test ("checkForDuplicates method should return true if a role with that name is already in the database", ()=>{
     const r = new Role( "Engineer", 100);
-    const roleObjectArr = [{title: "first", id: 1}, {title: "Engineer", id:2}, {title: "engineer", id: 3}];
+    const roleObjectArr = [{title: "first", id: 1}, {title: "engineer", id:2}, {title: "accountant", id: 3}];
     r.checkForDuplicates(roleObjectArr); 
     expect(r.isDuplicate).toBe(true); 
 }); 
 
 test ("checkForDuplicates method should return false if it's a new role", ()=>{
     const r = new Role( "Engineer", 100);
-    const roleObjectArr = [{title: "first", id: 1}, {title: "Manager", id:2}, {title: "engineer", id: 3}]; 
+    const roleObjectArr = [{title: "first", id: 1}, {title: "Manager", id:2}, {title: "Accountant", id: 3}]; 
     r.checkForDuplicates(roleObjectArr); 
     expect(r.isDuplicate).toBe(false); 
 }); 
 
 test ("getDepartmentId should find the role's department Id from a database", ()=>{
-    const r = new Role( "Engineer", 100, "Engineering");
-    const departmentObjectArr = [{name: "Engineering", id: 1}, {name: "Sales", id:2}, {name: "HR", id: 3}]; 
+    const r = new Role( "Engineer", 100, "engineering");
+    const departmentObjectArr = [{name: "engIneering", id: 1}, {name: "Sales", id:2}, {name: "HR", id: 3}]; 
     r.getDepartmentId(departmentObjectArr); 
     expect(r.departmentId).toBe(1); 
 });

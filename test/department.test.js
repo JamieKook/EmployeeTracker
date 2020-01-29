@@ -36,7 +36,7 @@ test ("Casing Fix should return a name with each separate word having a capitali
 ////---------------------Methods
 test ("getDepartmentId method should return correct id for inputted name", ()=>{
     const d = new Department( "Sales");
-    const departmentObjectArr = [{name: "Engineering", id: 1}, {name: "Sales", id:2}, {name: "HR", id: 3}]; 
+    const departmentObjectArr = [{name: "Engineering", id: 1}, {name: "saleS", id:2}, {name: "HR", id: 3}]; 
     d.getDepartmentId(departmentObjectArr)
     expect(d.id).toBe(2); 
 }); 
@@ -50,7 +50,7 @@ test ("getDepartmentId method should return null if department is not in databas
 
 test ("checkForDuplicates method should return true if a department with that name is already in the database", ()=>{
     const d = new Department( "Sales");
-    const departmentObjectArr = [{name: "Engineering", id: 1}, {name: "Sales", id:2}, {name: "HR", id: 3}]; 
+    const departmentObjectArr = [{name: "Engineering", id: 1}, {name: "saLes", id:2}, {name: "HR", id: 3}]; 
     d.getDepartmentId(departmentObjectArr) 
     d.checkForDuplicates(departmentObjectArr); 
     expect(d.isDuplicate).toBe(true); 

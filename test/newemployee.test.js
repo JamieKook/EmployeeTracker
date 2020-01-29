@@ -7,8 +7,8 @@ test ("Should use paramters to create properties", () =>{
     expect(e.firstName).toBe("Firstname"); 
     expect(e.lastName).toBe("Lastname");
     expect(e.id).toBe(2);
-    expect(e.roleTitle).toBe("roleTitle");
-    expect(e.managerName).toBe("manager"); 
+    expect(e.roleTitle).toBe("Roletitle");
+    expect(e.managerName).toBe("Manager"); 
     expect(e.isValid).toBe(true); 
   });
 
@@ -73,7 +73,7 @@ test ("Should create full name using inputted first and last names", ()=>{
 ////---------------------Methods
 test ("getEmployeeId method should return correct id for inputted name", ()=>{
     const e = new Employee( "First", "laST");
-    const employeeObjectArr = [{name: "first", id: 1}, {name: "first laST", id:2}, {name: "First Last", id: 3}]; 
+    const employeeObjectArr = [{name: "first", id: 1}, {name: "Sue Powers", id:2}, {name: "First Last", id: 3}]; 
     e.getEmployeeId(employeeObjectArr)
     expect(e.id).toBe(3); 
 }); 
@@ -87,7 +87,8 @@ test ("getEmployeeId method should return null if employee is not in database", 
 
 test ("checkForDuplicates method should return true if an employee with that name is already in the database", ()=>{
     const e = new Employee( "first", "laST");
-    const employeeObjectArr = [{name: "first", id: 1}, {name: "first laST", id:2}, {name: "First Last", id: 3}]; 
+    console.log(e.fullName); 
+    const employeeObjectArr = [{name: "first", id: 1}, {name: "first lasT", id:2}, {name: "other", id: 3}]; 
     e.getEmployeeId(employeeObjectArr); 
     e.checkForDuplicates(employeeObjectArr); 
     expect(e.isDuplicate).toBe(true); 
@@ -95,7 +96,7 @@ test ("checkForDuplicates method should return true if an employee with that nam
 
 test ("checkForDuplicates method should return false if it's a new employee", ()=>{
     const e = new Employee( "first", "laST");
-    const employeeObjectArr = [{name: "first", id: 1}, {name: "first laST", id:2}, {name: "Last", id: 3}]; 
+    const employeeObjectArr = [{name: "first", id: 1}, {name: "Susan Marie", id:2}, {name: "Last", id: 3}]; 
     e.getEmployeeId(employeeObjectArr); 
     e.checkForDuplicates(employeeObjectArr); 
     expect(e.isDuplicate).toBe(false); 
@@ -120,13 +121,13 @@ test ("checkUpdatedRole should return false if the employee's role was unchanged
     const e = new Employee( "first", "laST", 1, "engineer");
     e.roleId = 4; 
     const employeeObjectArr = [{name: "First Last", id: 1, roleId:4}, {name: "first laST", id:2, roleId:1}, {name: "Last", id: 3, roleId:1}]; 
-    e.checkUpdatedRole(employeeObjectArr); 
+    e.checkUpdatedRole(employeeObjectArr);  
     expect(e.isUpdated).toBe(false); 
 });
 
 test ("getManagerId should determine the id of the employee's manager", ()=>{
     const e = new Employee( "First", "Last", 1, "engineer", "Sue");
-    const employeeObjectArr = [{name: "First Last", id: 1, roleId:1}, {name: "Sue", id:2, roleId:1}, {name: "Last", id: 3, roleId:1}]; 
+    const employeeObjectArr = [{name: "First last", id: 1, roleId:1}, {name: "Sue", id:2, roleId:1}, {name: "Last", id: 3, roleId:1}]; 
     e.getManagerId(employeeObjectArr); 
     expect(e.managerId).toBe(2); 
 });
