@@ -277,11 +277,11 @@ async function updateRoleDepartmentMain(){
     let roles = getRoleNamesOnly(roleObjectArr); 
     let departments = getDepartmentNamesOnly(departmentObjectArr);  
     inquirerPrompts.askUpdateDepartmentQuestions(roles, departments).then(function(answers){ 
-        const role = initializeUpdatedRoleEmployee(answers, roleObjectArr, departmentObjectArr);
+        const role = initializeUpdatedDepartmentRole(answers, roleObjectArr, departmentObjectArr);
         if (role.isUpdated){
-            sqlQueries.updateEmployeeRoleSql(employee, startSession); 
+            sqlQueries.updateRoleDepartmentSql(role, startSession); 
         } else {
-            console.log(`\n${employee.fullName} already has the role of ${employee.roleTitle}!\n`);
+            console.log(`\n${role.name} is already in the ${role.departmentName} department!\n`);
             startSession(); 
         }; 
         
