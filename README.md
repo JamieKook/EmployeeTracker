@@ -66,7 +66,7 @@ Same functionality as updating employees.
 
 ## Coding
 
-This project utilizes javascript node and various node packages: 
+This project utilizes javascript, node, sql and various node packages: 
 
 1.   SqlQuries is a custom coded module I created to house all mysql functionality. This module contains: 
   *  mysql-promisify- Creates the connection to the database and preforms all queries asynchronously, returning data as promises.
